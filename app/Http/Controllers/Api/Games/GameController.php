@@ -282,46 +282,119 @@ class GameController extends Controller
     {
         try {
             $tokenOpen = \Helper::DecToken($token);
-            $validEndpoints = ['session', 'icons', 'spin', 'freenum'];
+            $validEndpoints = ['session', 'icons', 'spin', 'freenum', 'buy', 'logs', 'save', 'histories', 'collect', 'gamble', 'linenum'];
 
-            if (in_array($action, $validEndpoints, true)) {
-                if (isset($tokenOpen['status']) && $tokenOpen['status']) {
-                    $game = Game::whereStatus(1)
-                        ->where('game_code', $tokenOpen['game'])
-                        ->first();
-
-                    if (!empty($game)) {
-                        $controller = \Helper::createController($game->game_code);
-
-                        switch ($action) {
-                            case 'session':
-                                return $controller->session($token);
-                            case 'spin':
-                                return $controller->spin($request, $token);
-                            case 'freenum':
-                                return $controller->freenum($request, $token);
-                            case 'icons':
-                                return $controller->icons();
-                        }
-                    }
-                }
+            if (!in_array($action, $validEndpoints, true)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unsupported action',
+                    'data' => null,
+                ], 404);
             }
 
-            return response()->json([
-                'error' => 'Invalid game session',
-            ], 500);
+            if (!(isset($tokenOpen['status']) && $tokenOpen['status'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid game session',
+                    'data' => null,
+                ], 400);
+            }
+
+            $game = Game::whereStatus(1)
+                ->where('game_code', $tokenOpen['game'])
+                ->first();
+
+            if (empty($game)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Game not found',
+                    'data' => null,
+                ], 404);
+            }
+
+            $controller = \Helper::createController($game->game_code);
+
+            if (!$controller) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Game controller not available',
+                    'data' => null,
+                ], 500);
+            }
+
+            return match ($action) {
+                'session' => $controller->session($token),
+                'spin' => $controller->spin($request, $token),
+                'freenum' => $controller->freenum($request, $token),
+                'icons' => response()->json([
+                    'success' => true,
+                    'message' => 'Icons success',
+                    'data' => $controller->icons(),
+                ]),
+                'buy' => $controller->buy($request, $token),
+                'logs' => $controller->logs($token),
+                'save' => $controller->save($request, $token),
+                'histories' => $controller->histories($token),
+                'collect' => $controller->collect($token),
+                'gamble' => $controller->gamble($request, $token),
+                'linenum' => $controller->linenum($request, $token),
+                default => response()->json([
+                    'success' => false,
+                    'message' => 'Unsupported action',
+                    'data' => null,
+                ], 404),
+            };
         } catch (Throwable $e) {
             Log::error('GameController@sourceProvider failed', [
                 'message' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
                 'action' => $action,
+                'token' => $token,
             ]);
 
             return response()->json([
-                'error' => 'Game provider error',
+                'success' => false,
+                'message' => $e->getMessage(),
+                'data' => null,
             ], 500);
         }
+    }
+
+    public function historyDetail($id)
+    {
+        $controller = app(\App\Http\Controllers\Controller::class);
+        return $controller->historyDetail($id);
+    }
+
+    public function pricing()
+    {
+        $controller = app(\App\Http\Controllers\Controller::class);
+        return $controller->pricing();
+    }
+
+    public function checkFree()
+    {
+        $controller = app(\App\Http\Controllers\Controller::class);
+        return $controller->checkFree();
+    }
+
+    public function freeCredit()
+    {
+        $controller = app(\App\Http\Controllers\Controller::class);
+        return $controller->freeCredit();
+    }
+
+    public function checkLucky()
+    {
+        $controller = app(\App\Http\Controllers\Controller::class);
+        return $controller->checkLucky();
+    }
+
+    public function luckyWheel()
+    {
+        $controller = app(\App\Http\Controllers\Controller::class);
+        return $controller->luckyWheel();
     }
 
     public function toggleFavorite($id)
@@ -443,9 +516,7 @@ class GameController extends Controller
                 ], 404);
             }
 
-            $wallet = Wallet::where('user_id', auth('api')->id())
-                ->where('active', 1)
-                ->first();
+            $wallet = Wallet::where('user_id', auth('api')->id())->first();
 
             if (!$wallet) {
                 return response()->json([
@@ -453,10 +524,16 @@ class GameController extends Controller
                 ], 404);
             }
 
+            if (!((bool) ($wallet->active ?? $wallet->status ?? true))) {
+                return response()->json([
+                    'error' => 'Wallet inactive',
+                ], 403);
+            }
+
             $totalBalance =
-                (float) ($wallet->total_balance ?? 0) +
                 (float) ($wallet->balance ?? 0) +
-                (float) ($wallet->balance_bonus ?? 0);
+                (float) ($wallet->balance_bonus ?? $wallet->bonus_balance ?? 0) +
+                (float) ($wallet->balance_withdrawal ?? $wallet->withdrawable_balance ?? 0);
 
             if ($totalBalance <= 0) {
                 return response()->json([
@@ -478,9 +555,11 @@ class GameController extends Controller
                 ], 422);
             }
 
+            $baseUrl = rtrim($request->getSchemeAndHttpHost(), '/');
+
             return response()->json([
                 'game' => $game,
-                'gameUrl' => secure_url('/originals/' . $game->game_code . '/index.html?token=' . $token),
+                'gameUrl' => $baseUrl . '/originals/' . $game->game_code . '/index.html?token=' . urlencode($token),
                 'token' => $token,
             ], 200);
         } catch (Throwable $e) {
