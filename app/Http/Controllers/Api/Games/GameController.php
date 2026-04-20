@@ -16,6 +16,7 @@ use App\Traits\Providers\VibraTrait;
 use App\Traits\Providers\WorldSlotTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -31,18 +32,123 @@ class GameController extends Controller
     protected function originalGameMap(): array
     {
         return [
-            ['id' => 101, 'game_name' => 'Fortune Tiger', 'slug' => 'fortune-tiger', 'game_code' => 'fortunetiger'],
-            ['id' => 102, 'game_name' => 'Fortune Rabbit', 'slug' => 'fortune-rabbit', 'game_code' => 'fortunerabbit'],
-            ['id' => 103, 'game_name' => 'Fortune Ox', 'slug' => 'fortune-ox', 'game_code' => 'fortuneox'],
-            ['id' => 104, 'game_name' => 'Fortune Panda', 'slug' => 'fortune-panda', 'game_code' => 'fortunepanda'],
-            ['id' => 105, 'game_name' => 'Fortune Mouse', 'slug' => 'fortune-mouse', 'game_code' => 'fortunemouse'],
-            ['id' => 106, 'game_name' => 'Treasures of Aztec', 'slug' => 'treasures-of-aztec', 'game_code' => 'treasuresofaztec'],
-            ['id' => 201, 'game_name' => 'Phoenix Rises', 'slug' => 'phoenix-rises', 'game_code' => 'phoenixrises'],
-            ['id' => 202, 'game_name' => 'Queen of Bounty', 'slug' => 'queen-of-bounty', 'game_code' => 'queenofbounty'],
-            ['id' => 203, 'game_name' => 'Jack Frost', 'slug' => 'jack-frost', 'game_code' => 'jackfrost'],
-            ['id' => 204, 'game_name' => 'Songkran Party', 'slug' => 'songkran-party', 'game_code' => 'songkranparty'],
-            ['id' => 205, 'game_name' => 'Bikini Paradise', 'slug' => 'bikini-paradise', 'game_code' => 'bikiniparadise'],
-            ['id' => 206, 'game_name' => 'Hood vs Woolf', 'slug' => 'hood-vs-woolf', 'game_code' => 'hoodvswoolf'],
+            ['id' => 101, 'name' => 'Fortune Tiger', 'slug' => 'fortune-tiger', 'game_code' => 'fortunetiger'],
+            ['id' => 102, 'name' => 'Fortune Rabbit', 'slug' => 'fortune-rabbit', 'game_code' => 'fortunerabbit'],
+            ['id' => 103, 'name' => 'Fortune Ox', 'slug' => 'fortune-ox', 'game_code' => 'fortuneox'],
+            ['id' => 104, 'name' => 'Fortune Panda', 'slug' => 'fortune-panda', 'game_code' => 'fortunepanda'],
+            ['id' => 105, 'name' => 'Fortune Mouse', 'slug' => 'fortune-mouse', 'game_code' => 'fortunemouse'],
+            ['id' => 106, 'name' => 'Treasures of Aztec', 'slug' => 'treasures-of-aztec', 'game_code' => 'treasuresofaztec'],
+            ['id' => 201, 'name' => 'Phoenix Rises', 'slug' => 'phoenix-rises', 'game_code' => 'phoenixrises'],
+            ['id' => 202, 'name' => 'Queen of Bounty', 'slug' => 'queen-of-bounty', 'game_code' => 'queenofbounty'],
+            ['id' => 203, 'name' => 'Jack Frost', 'slug' => 'jack-frost', 'game_code' => 'jackfrost'],
+            ['id' => 204, 'name' => 'Songkran Party', 'slug' => 'songkran-party', 'game_code' => 'songkranparty'],
+            ['id' => 205, 'name' => 'Bikini Paradise', 'slug' => 'bikini-paradise', 'game_code' => 'bikiniparadise'],
+            ['id' => 206, 'name' => 'Hood vs Woolf', 'slug' => 'hood-vs-woolf', 'game_code' => 'hoodvswoolf'],
+        ];
+    }
+
+    protected function hasTableColumn(string $table, string $column): bool
+    {
+        try {
+            return Schema::hasColumn($table, $column);
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    protected function gameName($game): string
+    {
+        return (string) (
+            $game->game_name
+            ?? $game->name
+            ?? $game->title
+            ?? 'Unknown Game'
+        );
+    }
+
+    protected function gameSlug($game): string
+    {
+        $raw = $game->slug ?? $game->game_code ?? Str::slug($this->gameName($game));
+        return (string) $raw;
+    }
+
+    protected function gameCover($game): string
+    {
+        $cover = $game->cover ?? $game->image ?? $game->img ?? $game->thumbnail ?? null;
+
+        if (!$cover) {
+            return $this->fallbackCover();
+        }
+
+        $cover = (string) $cover;
+
+        if (Str::startsWith($cover, ['http://', 'https://'])) {
+            return $cover;
+        }
+
+        return secure_url('/' . ltrim($cover, '/'));
+    }
+
+    protected function providerName($provider): string
+    {
+        return (string) ($provider->name ?? $provider->title ?? 'Original Game');
+    }
+
+    protected function providerSlug($provider): string
+    {
+        return (string) (
+            $provider->slug
+            ?? $provider->code
+            ?? Str::slug($this->providerName($provider))
+        );
+    }
+
+    protected function normalizeProvider($provider): array
+    {
+        return [
+            'id' => $provider->id ?? null,
+            'name' => $this->providerName($provider),
+            'slug' => $this->providerSlug($provider),
+        ];
+    }
+
+    protected function normalizeGame($game): array
+    {
+        $categories = [];
+
+        if (method_exists($game, 'relationLoaded') && $game->relationLoaded('categories') && $game->categories) {
+            $categories = $game->categories->map(function ($category) {
+                return [
+                    'id' => $category->id ?? null,
+                    'name' => $category->name ?? $category->title ?? 'Category',
+                    'slug' => $category->slug ?? Str::slug($category->name ?? $category->title ?? 'category'),
+                ];
+            })->values()->toArray();
+        }
+
+        $provider = null;
+        if (method_exists($game, 'relationLoaded') && $game->relationLoaded('provider') && $game->provider) {
+            $provider = $this->normalizeProvider($game->provider);
+        } else {
+            $provider = [
+                'id' => $game->provider_id ?? null,
+                'name' => 'Original Game',
+                'slug' => 'original-game',
+            ];
+        }
+
+        return [
+            'id' => $game->id ?? null,
+            'game_name' => $this->gameName($game),
+            'name' => $this->gameName($game),
+            'slug' => $this->gameSlug($game),
+            'game_code' => (string) ($game->game_code ?? ''),
+            'cover' => $this->gameCover($game),
+            'distribution' => (string) ($game->distribution ?? 'source'),
+            'status' => (bool) ($game->status ?? true),
+            'views' => (int) ($game->views ?? 0),
+            'provider' => $provider,
+            'categories' => $categories,
         ];
     }
 
@@ -56,14 +162,21 @@ class GameController extends Controller
         foreach ($games as $index => $game) {
             $payload = [
                 'id' => $game['id'],
-                'game_name' => $game['game_name'],
+                'game_name' => $game['name'],
+                'name' => $game['name'],
                 'slug' => $game['slug'],
                 'game_code' => $game['game_code'],
                 'cover' => $this->fallbackCover(),
+                'distribution' => 'source',
+                'status' => true,
+                'views' => 0,
                 'provider' => [
                     'id' => $index < 6 ? 1 : 2,
                     'name' => $index < 6 ? 'Original Slots A' : 'Original Slots B',
                     'slug' => $index < 6 ? 'original-slots-a' : 'original-slots-b',
+                ],
+                'categories' => [
+                    ['id' => 1, 'name' => 'Slots', 'slug' => 'slots'],
                 ],
             ];
 
@@ -97,44 +210,59 @@ class GameController extends Controller
         return [
             [
                 'id' => $games[0]['id'],
-                'name' => $games[0]['game_name'],
-                'game_name' => $games[0]['game_name'],
+                'game_name' => $games[0]['name'],
+                'name' => $games[0]['name'],
                 'slug' => $games[0]['slug'],
                 'game_code' => $games[0]['game_code'],
                 'cover' => $this->fallbackCover(),
-                'image' => $this->fallbackCover(),
+                'distribution' => 'source',
+                'status' => true,
+                'views' => 0,
                 'provider' => [
                     'id' => 1,
                     'name' => 'Original Slots A',
                     'slug' => 'original-slots-a',
+                ],
+                'categories' => [
+                    ['id' => 1, 'name' => 'Slots', 'slug' => 'slots'],
                 ],
             ],
             [
                 'id' => $games[1]['id'],
-                'name' => $games[1]['game_name'],
-                'game_name' => $games[1]['game_name'],
+                'game_name' => $games[1]['name'],
+                'name' => $games[1]['name'],
                 'slug' => $games[1]['slug'],
                 'game_code' => $games[1]['game_code'],
                 'cover' => $this->fallbackCover(),
-                'image' => $this->fallbackCover(),
+                'distribution' => 'source',
+                'status' => true,
+                'views' => 0,
                 'provider' => [
                     'id' => 1,
                     'name' => 'Original Slots A',
                     'slug' => 'original-slots-a',
                 ],
+                'categories' => [
+                    ['id' => 1, 'name' => 'Slots', 'slug' => 'slots'],
+                ],
             ],
             [
                 'id' => $games[6]['id'],
-                'name' => $games[6]['game_name'],
-                'game_name' => $games[6]['game_name'],
+                'game_name' => $games[6]['name'],
+                'name' => $games[6]['name'],
                 'slug' => $games[6]['slug'],
                 'game_code' => $games[6]['game_code'],
                 'cover' => $this->fallbackCover(),
-                'image' => $this->fallbackCover(),
+                'distribution' => 'source',
+                'status' => true,
+                'views' => 0,
                 'provider' => [
                     'id' => 2,
                     'name' => 'Original Slots B',
                     'slug' => 'original-slots-b',
+                ],
+                'categories' => [
+                    ['id' => 1, 'name' => 'Slots', 'slug' => 'slots'],
                 ],
             ],
         ];
@@ -142,23 +270,30 @@ class GameController extends Controller
 
     protected function fallbackSingleGame(string $id): array
     {
-        $games = collect($this->originalGameMap())
+        $map = collect($this->originalGameMap())
             ->keyBy(fn ($item) => (string) $item['id'])
             ->toArray();
 
-        $base = $games[$id] ?? $games['101'];
+        $base = $map[$id] ?? $map['101'];
+
+        $providerId = ((int) $base['id'] < 200) ? 1 : 2;
+        $providerName = ((int) $base['id'] < 200) ? 'Original Slots A' : 'Original Slots B';
+        $providerSlug = ((int) $base['id'] < 200) ? 'original-slots-a' : 'original-slots-b';
 
         return [
             'id' => $base['id'],
-            'game_name' => $base['game_name'],
+            'game_name' => $base['name'],
+            'name' => $base['name'],
             'slug' => $base['slug'],
             'game_code' => $base['game_code'],
             'cover' => $this->fallbackCover(),
             'distribution' => 'source',
+            'status' => true,
+            'views' => 0,
             'provider' => [
-                'id' => ((int) $base['id'] < 200) ? 1 : 2,
-                'name' => ((int) $base['id'] < 200) ? 'Original Slots A' : 'Original Slots B',
-                'slug' => ((int) $base['id'] < 200) ? 'original-slots-a' : 'original-slots-b',
+                'id' => $providerId,
+                'name' => $providerName,
+                'slug' => $providerSlug,
             ],
             'categories' => [
                 ['id' => 1, 'name' => 'Slots', 'slug' => 'slots'],
@@ -169,16 +304,24 @@ class GameController extends Controller
     protected function fallbackGamesPaginated(Request $request): array
     {
         $games = array_map(function ($game) {
+            $providerId = ((int) $game['id'] < 200) ? 1 : 2;
+            $providerName = ((int) $game['id'] < 200) ? 'Original Slots A' : 'Original Slots B';
+            $providerSlug = ((int) $game['id'] < 200) ? 'original-slots-a' : 'original-slots-b';
+
             return [
                 'id' => $game['id'],
-                'game_name' => $game['game_name'],
+                'game_name' => $game['name'],
+                'name' => $game['name'],
                 'slug' => $game['slug'],
                 'game_code' => $game['game_code'],
                 'cover' => $this->fallbackCover(),
+                'distribution' => 'source',
+                'status' => true,
+                'views' => 0,
                 'provider' => [
-                    'id' => ((int) $game['id'] < 200) ? 1 : 2,
-                    'name' => ((int) $game['id'] < 200) ? 'Original Slots A' : 'Original Slots B',
-                    'slug' => ((int) $game['id'] < 200) ? 'original-slots-a' : 'original-slots-b',
+                    'id' => $providerId,
+                    'name' => $providerName,
+                    'slug' => $providerSlug,
                 ],
                 'categories' => [
                     ['id' => 1, 'name' => 'Slots', 'slug' => 'slots'],
@@ -190,9 +333,11 @@ class GameController extends Controller
 
         if ($searchTerm !== '') {
             $games = array_values(array_filter($games, function ($game) use ($searchTerm) {
-                return str_contains(strtolower($game['game_name']), strtolower($searchTerm))
-                    || str_contains(strtolower($game['game_code']), strtolower($searchTerm))
-                    || str_contains(strtolower($game['slug']), strtolower($searchTerm));
+                $needle = Str::lower($searchTerm);
+
+                return str_contains(Str::lower($game['game_name']), $needle)
+                    || str_contains(Str::lower($game['game_code']), $needle)
+                    || str_contains(Str::lower($game['slug']), $needle);
             }));
         }
 
@@ -213,32 +358,46 @@ class GameController extends Controller
         ];
     }
 
-    protected function emptyRuntimeSuccess(string $message = 'OK')
-    {
-        return response()->json([
-            'success' => true,
-            'message' => $message,
-            'data' => [],
-        ], 200);
-    }
-
     public function index()
     {
         try {
-            $providers = Provider::with(['games', 'games.provider'])
-                ->whereHas('games')
-                ->where('status', 1)
-                ->orderBy('name', 'desc')
-                ->get();
+            $providers = Provider::with(['games', 'games.provider'])->get();
 
-            if ($providers->isEmpty()) {
+            $normalized = $providers->map(function ($provider) {
+                $games = collect($provider->games ?? [])
+                    ->filter(function ($game) {
+                        if ($this->hasTableColumn('games', 'status')) {
+                            return (bool) ($game->status ?? false);
+                        }
+
+                        return true;
+                    })
+                    ->map(function ($game) {
+                        return $this->normalizeGame($game);
+                    })
+                    ->values()
+                    ->toArray();
+
+                return [
+                    'id' => $provider->id ?? null,
+                    'name' => $this->providerName($provider),
+                    'slug' => $this->providerSlug($provider),
+                    'games' => $games,
+                ];
+            })->filter(function ($provider) {
+                return !empty($provider['games']);
+            })->values();
+
+            if ($normalized->isEmpty()) {
                 return response()->json([
                     'providers' => $this->fallbackProviders(),
                     'fallback' => true,
                 ], 200);
             }
 
-            return response()->json(['providers' => $providers], 200);
+            return response()->json([
+                'providers' => $normalized,
+            ], 200);
         } catch (Throwable $e) {
             Log::error('GameController@index failed', [
                 'message' => $e->getMessage(),
@@ -255,63 +414,40 @@ class GameController extends Controller
 
     public function featured()
     {
-        Log::info('FEATURED GAMES HIT');
-
         try {
-            $featuredGames = Game::with(['provider'])
-                ->where('status', 1)
-                ->where(function ($query) {
-                    $query->where('is_featured', 1)
-                        ->orWhere('views', '>', 0);
-                })
-                ->orderByDesc('is_featured')
-                ->orderByDesc('views')
-                ->orderByDesc('id')
-                ->limit(12)
-                ->get()
+            $query = Game::query()->with(['provider', 'categories']);
+
+            if ($this->hasTableColumn('games', 'status')) {
+                $query->where('status', 1);
+            }
+
+            if ($this->hasTableColumn('games', 'is_featured')) {
+                $query->where('is_featured', 1);
+            }
+
+            if ($this->hasTableColumn('games', 'views')) {
+                $query->orderByDesc('views');
+            } else {
+                $query->orderByDesc('id');
+            }
+
+            $featuredGames = $query->limit(6)->get()
                 ->map(function ($game) {
-                    $cover = $game->cover ?? null;
-
-                    if (!$cover) {
-                        $cover = $this->fallbackCover();
-                    } elseif (
-                        !str_starts_with($cover, 'http://') &&
-                        !str_starts_with($cover, 'https://')
-                    ) {
-                        $cover = secure_url($cover);
-                    }
-
-                    return [
-                        'id' => $game->id,
-                        'name' => $game->game_name,
-                        'game_name' => $game->game_name,
-                        'slug' => $game->slug ?? Str::slug($game->game_name),
-                        'game_code' => $game->game_code,
-                        'cover' => $cover,
-                        'image' => $cover,
-                        'provider' => [
-                            'id' => $game->provider->id ?? null,
-                            'name' => $game->provider->name ?? 'Original Game',
-                            'slug' => $game->provider->code ?? ($game->provider->slug ?? 'original-game'),
-                        ],
-                    ];
+                    return $this->normalizeGame($game);
                 })
                 ->values();
 
             if ($featuredGames->isEmpty()) {
-                $featuredGames = collect($this->fallbackFeaturedGames());
+                return response()->json([
+                    'featured_games' => $this->fallbackFeaturedGames(),
+                    'games' => $this->fallbackFeaturedGames(),
+                    'fallback' => true,
+                ], 200);
             }
-
-            Log::info('FEATURED GAMES RESULT', [
-                'count' => $featuredGames->count(),
-            ]);
 
             return response()->json([
                 'featured_games' => $featuredGames,
-                'featuredGames' => $featuredGames,
                 'games' => $featuredGames,
-                'data' => $featuredGames,
-                'fallback' => false,
             ], 200);
         } catch (Throwable $e) {
             Log::error('GameController@featured failed', [
@@ -320,13 +456,9 @@ class GameController extends Controller
                 'line' => $e->getLine(),
             ]);
 
-            $fallback = collect($this->fallbackFeaturedGames());
-
             return response()->json([
-                'featured_games' => $fallback,
-                'featuredGames' => $fallback,
-                'games' => $fallback,
-                'data' => $fallback,
+                'featured_games' => $this->fallbackFeaturedGames(),
+                'games' => $this->fallbackFeaturedGames(),
                 'fallback' => true,
             ], 200);
         }
@@ -334,33 +466,9 @@ class GameController extends Controller
 
     public function sourceProvider(Request $request, $token, $action)
     {
-        Log::info('VGAMES HIT', [
-            'method' => $request->method(),
-            'token' => $token ?? null,
-            'action' => $action ?? null,
-            'query' => $request->query(),
-            'body' => $request->all(),
-            'url' => $request->fullUrl(),
-        ]);
-
         try {
             $tokenOpen = \Helper::DecToken($token);
-
-            $validEndpoints = [
-                'session',
-                'icons',
-                'spin',
-                'freenum',
-                'buy',
-                'logs',
-                'save',
-                'histories',
-                'collect',
-                'gamble',
-                'linenum',
-                'change_free',
-                'history_detail',
-            ];
+            $validEndpoints = ['session', 'icons', 'spin', 'freenum', 'buy', 'logs', 'save', 'histories', 'collect', 'gamble', 'linenum'];
 
             if (!in_array($action, $validEndpoints, true)) {
                 return response()->json([
@@ -378,7 +486,7 @@ class GameController extends Controller
                 ], 400);
             }
 
-            $game = Game::where('status', 1)
+            $game = Game::query()
                 ->where('game_code', $tokenOpen['game'])
                 ->first();
 
@@ -388,6 +496,14 @@ class GameController extends Controller
                     'message' => 'Game not found',
                     'data' => null,
                 ], 404);
+            }
+
+            if ($this->hasTableColumn('games', 'status') && !(bool) ($game->status ?? false)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Game inactive',
+                    'data' => null,
+                ], 403);
             }
 
             $controller = \Helper::createController($game->game_code);
@@ -400,84 +516,22 @@ class GameController extends Controller
                 ], 500);
             }
 
-            if ($action === 'icons') {
-                if (!method_exists($controller, 'icons')) {
-                    return response()->json([
-                        'success' => true,
-                        'message' => 'Icons success',
-                        'data' => [],
-                    ], 200);
-                }
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Icons success',
-                    'data' => $controller->icons(),
-                ], 200);
-            }
-
-            if ($action === 'change_free') {
-                if (method_exists($controller, 'change_free')) {
-                    return $controller->change_free($request, $token);
-                }
-
-                return $this->emptyRuntimeSuccess('Change free success');
-            }
-
-            if ($action === 'history_detail') {
-                if (method_exists($controller, 'history_detail')) {
-                    return $controller->history_detail($request, $token);
-                }
-
-                return $this->emptyRuntimeSuccess('History detail success');
-            }
-
-            if ($action === 'buy') {
-                return method_exists($controller, 'buy')
-                    ? $controller->buy($request, $token)
-                    : $this->emptyRuntimeSuccess('Buy success');
-            }
-
-            if ($action === 'logs') {
-                return method_exists($controller, 'logs')
-                    ? $controller->logs($token)
-                    : $this->emptyRuntimeSuccess('Logs success');
-            }
-
-            if ($action === 'save') {
-                return method_exists($controller, 'save')
-                    ? $controller->save($request, $token)
-                    : $this->emptyRuntimeSuccess('Save success');
-            }
-
-            if ($action === 'histories') {
-                return method_exists($controller, 'histories')
-                    ? $controller->histories($token)
-                    : $this->emptyRuntimeSuccess('Histories success');
-            }
-
-            if ($action === 'collect') {
-                return method_exists($controller, 'collect')
-                    ? $controller->collect($token)
-                    : $this->emptyRuntimeSuccess('Collect success');
-            }
-
-            if ($action === 'gamble') {
-                return method_exists($controller, 'gamble')
-                    ? $controller->gamble($request, $token)
-                    : $this->emptyRuntimeSuccess('Gamble success');
-            }
-
-            if ($action === 'linenum') {
-                return method_exists($controller, 'linenum')
-                    ? $controller->linenum($request, $token)
-                    : $this->emptyRuntimeSuccess('Linenum success');
-            }
-
             return match ($action) {
                 'session' => $controller->session($token),
                 'spin' => $controller->spin($request, $token),
                 'freenum' => $controller->freenum($request, $token),
+                'icons' => response()->json([
+                    'success' => true,
+                    'message' => 'Icons success',
+                    'data' => $controller->icons(),
+                ]),
+                'buy' => $controller->buy($request, $token),
+                'logs' => $controller->logs($token),
+                'save' => $controller->save($request, $token),
+                'histories' => $controller->histories($token),
+                'collect' => $controller->collect($token),
+                'gamble' => $controller->gamble($request, $token),
+                'linenum' => $controller->linenum($request, $token),
                 default => response()->json([
                     'success' => false,
                     'message' => 'Unsupported action',
@@ -546,25 +600,23 @@ class GameController extends Controller
                     ->first();
 
                 if ($checkExist) {
-                    if ($checkExist->delete()) {
-                        return response()->json([
-                            'status' => true,
-                            'message' => 'Removed successfully',
-                        ], 200);
-                    }
-                } else {
-                    $gameFavoriteCreate = GameFavorite::create([
-                        'user_id' => auth('api')->id(),
-                        'game_id' => $id,
-                    ]);
+                    $checkExist->delete();
 
-                    if ($gameFavoriteCreate) {
-                        return response()->json([
-                            'status' => true,
-                            'message' => 'Created successfully',
-                        ], 200);
-                    }
+                    return response()->json([
+                        'status' => true,
+                        'message' => 'Removed successfully',
+                    ], 200);
                 }
+
+                GameFavorite::create([
+                    'user_id' => auth('api')->id(),
+                    'game_id' => $id,
+                ]);
+
+                return response()->json([
+                    'status' => true,
+                    'message' => 'Created successfully',
+                ], 200);
             }
 
             return response()->json([
@@ -596,25 +648,23 @@ class GameController extends Controller
                     ->first();
 
                 if ($checkExist) {
-                    if ($checkExist->delete()) {
-                        return response()->json([
-                            'status' => true,
-                            'message' => 'Removed successfully',
-                        ], 200);
-                    }
-                } else {
-                    $gameLikeCreate = GameLike::create([
-                        'user_id' => auth('api')->id(),
-                        'game_id' => $id,
-                    ]);
+                    $checkExist->delete();
 
-                    if ($gameLikeCreate) {
-                        return response()->json([
-                            'status' => true,
-                            'message' => 'Created successfully',
-                        ], 200);
-                    }
+                    return response()->json([
+                        'status' => true,
+                        'message' => 'Removed successfully',
+                    ], 200);
                 }
+
+                GameLike::create([
+                    'user_id' => auth('api')->id(),
+                    'game_id' => $id,
+                ]);
+
+                return response()->json([
+                    'status' => true,
+                    'message' => 'Created successfully',
+                ], 200);
             }
 
             return response()->json([
@@ -646,6 +696,22 @@ class GameController extends Controller
                 ], 401);
             }
 
+            $game = Game::with(['categories', 'provider'])->find($id);
+
+            if (!$game) {
+                return response()->json([
+                    'game' => $this->fallbackSingleGame($id),
+                    'gameUrl' => null,
+                    'fallback' => true,
+                ], 200);
+            }
+
+            if ($this->hasTableColumn('games', 'status') && !(bool) ($game->status ?? false)) {
+                return response()->json([
+                    'error' => 'Game inactive',
+                ], 403);
+            }
+
             $wallet = Wallet::where('user_id', auth('api')->id())->first();
 
             if (!$wallet) {
@@ -660,10 +726,14 @@ class GameController extends Controller
                 ], 403);
             }
 
-            $totalBalance =
-                (float) ($wallet->balance ?? 0) +
-                (float) ($wallet->balance_bonus ?? $wallet->bonus_balance ?? 0) +
-                (float) ($wallet->balance_withdrawal ?? $wallet->withdrawable_balance ?? 0);
+            $totalBalance = (float) ($wallet->total_balance ?? 0);
+
+            if ($totalBalance <= 0) {
+                $totalBalance =
+                    (float) ($wallet->balance ?? 0) +
+                    (float) ($wallet->balance_bonus ?? $wallet->bonus_balance ?? 0) +
+                    (float) ($wallet->balance_withdrawal ?? $wallet->withdrawable_balance ?? 0);
+            }
 
             if ($totalBalance <= 0) {
                 return response()->json([
@@ -672,64 +742,26 @@ class GameController extends Controller
                 ], 402);
             }
 
-            $game = Game::with(['categories', 'provider'])
-                ->where('status', 1)
-                ->find($id);
-
-            if (!$game) {
-                $fallbackGame = $this->fallbackSingleGame($id);
-
-                $token = \Helper::MakeToken([
-                    'id' => auth('api')->id(),
-                    'game' => $fallbackGame['game_code'],
-                ]);
-
-                $baseUrl = rtrim(config('app.url') ?: $request->getSchemeAndHttpHost(), '/');
-                $gameUrl = $baseUrl . '/originals/' . $fallbackGame['game_code'] . '/index.html?token=' . urlencode($token);
-
-                Log::info('GAME SHOW RESPONSE', [
-                    'game_id' => $id,
-                    'auth' => auth('api')->check(),
-                    'user_id' => auth('api')->id(),
-                    'game_url' => $gameUrl,
-                    'fallback' => true,
-                ]);
-
-                return response()->json([
-                    'game' => $fallbackGame,
-                    'gameUrl' => $gameUrl,
-                    'token' => $token,
-                    'fallback' => true,
-                ], 200);
+            if ($this->hasTableColumn('games', 'views')) {
+                $game->increment('views');
             }
-
-            $game->increment('views');
 
             $token = \Helper::MakeToken([
                 'id' => auth('api')->id(),
                 'game' => $game->game_code,
             ]);
 
-            if (($game->distribution ?? null) !== 'source') {
+            if (($game->distribution ?? 'source') !== 'source') {
                 return response()->json([
                     'error' => 'Unsupported game distribution',
                 ], 422);
             }
 
-            $baseUrl = rtrim(config('app.url') ?: $request->getSchemeAndHttpHost(), '/');
-            $gameUrl = $baseUrl . '/originals/' . $game->game_code . '/index.html?token=' . urlencode($token);
-
-            Log::info('GAME SHOW RESPONSE', [
-                'game_id' => $id,
-                'auth' => auth('api')->check(),
-                'user_id' => auth('api')->id(),
-                'game_url' => $gameUrl,
-                'fallback' => false,
-            ]);
+            $baseUrl = rtrim($request->getSchemeAndHttpHost(), '/');
 
             return response()->json([
-                'game' => $game,
-                'gameUrl' => $gameUrl,
+                'game' => $this->normalizeGame($game),
+                'gameUrl' => $baseUrl . '/originals/' . $game->game_code . '/index.html?token=' . urlencode($token),
                 'token' => $token,
             ], 200);
         } catch (Throwable $e) {
@@ -752,7 +784,11 @@ class GameController extends Controller
         try {
             $query = Game::query()->with(['provider', 'categories']);
 
-            if (!empty($request->provider) && $request->provider !== 'all') {
+            if ($this->hasTableColumn('games', 'status')) {
+                $query->where('status', 1);
+            }
+
+            if (!empty($request->provider) && $request->provider !== 'all' && $this->hasTableColumn('games', 'provider_id')) {
                 $query->where('provider_id', $request->provider);
             }
 
@@ -762,23 +798,44 @@ class GameController extends Controller
                 });
             }
 
-            if (!empty($request->searchTerm) && strlen((string) $request->searchTerm) > 2) {
-                $search = trim((string) $request->searchTerm);
+            $search = trim((string) $request->searchTerm);
 
-                $query->where(function ($q) use ($search) {
-                    $q->where('game_code', 'like', "%{$search}%")
-                        ->orWhere('game_name', 'like', "%{$search}%")
-                        ->orWhere('description', 'like', "%{$search}%")
-                        ->orWhere('distribution', 'like', "%{$search}%");
-                });
+            if ($search !== '' && strlen($search) > 1) {
+                $searchableColumns = array_values(array_filter([
+                    $this->hasTableColumn('games', 'game_code') ? 'game_code' : null,
+                    $this->hasTableColumn('games', 'game_name') ? 'game_name' : null,
+                    $this->hasTableColumn('games', 'name') ? 'name' : null,
+                    $this->hasTableColumn('games', 'slug') ? 'slug' : null,
+                    $this->hasTableColumn('games', 'description') ? 'description' : null,
+                    $this->hasTableColumn('games', 'distribution') ? 'distribution' : null,
+                ]));
+
+                if (!empty($searchableColumns)) {
+                    $query->where(function ($q) use ($searchableColumns, $search) {
+                        foreach ($searchableColumns as $index => $column) {
+                            if ($index === 0) {
+                                $q->where($column, 'like', '%' . $search . '%');
+                            } else {
+                                $q->orWhere($column, 'like', '%' . $search . '%');
+                            }
+                        }
+                    });
+                }
             } else {
-                $query->orderBy('views', 'desc');
+                if ($this->hasTableColumn('games', 'views')) {
+                    $query->orderByDesc('views');
+                } else {
+                    $query->orderByDesc('id');
+                }
             }
 
-            $games = $query
-                ->where('status', 1)
-                ->paginate(12)
-                ->appends($request->query());
+            $games = $query->paginate(12)->appends(request()->query());
+
+            $games->setCollection(
+                $games->getCollection()->map(function ($game) {
+                    return $this->normalizeGame($game);
+                })
+            );
 
             if ($games->isEmpty()) {
                 return response()->json([
@@ -787,7 +844,9 @@ class GameController extends Controller
                 ], 200);
             }
 
-            return response()->json(['games' => $games], 200);
+            return response()->json([
+                'games' => $games,
+            ], 200);
         } catch (Throwable $e) {
             Log::error('GameController@allGames failed', [
                 'message' => $e->getMessage(),
