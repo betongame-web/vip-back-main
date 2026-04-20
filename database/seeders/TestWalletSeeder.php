@@ -19,61 +19,44 @@ class TestWalletSeeder extends Seeder
         $existing = DB::table('wallets')->where('user_id', $user->id)->first();
 
         $data = [];
+        $set = function (string $column, $value) use (&$data) {
+            if (Schema::hasColumn('wallets', $column)) {
+                $data[$column] = $value;
+            }
+        };
 
-        if (Schema::hasColumn('wallets', 'user_id')) {
-            $data['user_id'] = $user->id;
-        }
-
-        if (Schema::hasColumn('wallets', 'currency')) {
-            $data['currency'] = 'USD';
-        }
-
-        if (Schema::hasColumn('wallets', 'symbol')) {
-            $data['symbol'] = '$';
-        }
-
-        if (Schema::hasColumn('wallets', 'balance')) {
-            $data['balance'] = 1000;
-        }
-
-        if (Schema::hasColumn('wallets', 'refer_rewards')) {
-            $data['refer_rewards'] = 0;
-        }
-
-        if (Schema::hasColumn('wallets', 'total_balance')) {
-            $data['total_balance'] = 1000;
-        }
-
-        if (Schema::hasColumn('wallets', 'total_deposit')) {
-            $data['total_deposit'] = 1000;
-        }
-
-        if (Schema::hasColumn('wallets', 'total_withdrawal')) {
-            $data['total_withdrawal'] = 0;
-        }
-
-        if (Schema::hasColumn('wallets', 'bonus_balance')) {
-            $data['bonus_balance'] = 0;
-        }
-
-        if (Schema::hasColumn('wallets', 'status')) {
-            $data['status'] = 1;
-        }
+        $set('user_id', $user->id);
+        $set('currency', 'USD');
+        $set('symbol', '$');
+        $set('balance', 1000);
+        $set('bonus_balance', 0);
+        $set('withdrawable_balance', 0);
+        $set('balance_bonus', 0);
+        $set('balance_withdrawal', 0);
+        $set('balance_bonus_rollover', 0);
+        $set('balance_deposit_rollover', 0);
+        $set('balance_demo', 1000);
+        $set('refer_rewards', 0);
+        $set('vip_points', 0);
+        $set('vip_level', 0);
+        $set('total_balance', 1000);
+        $set('total_deposited', 1000);
+        $set('total_withdrawn', 0);
+        $set('total_wagered', 0);
+        $set('rollover_remaining', 0);
+        $set('active', 1);
+        $set('status', 1);
 
         if (Schema::hasColumn('wallets', 'created_at')) {
             $data['created_at'] = now();
         }
-
         if (Schema::hasColumn('wallets', 'updated_at')) {
             $data['updated_at'] = now();
         }
 
         if ($existing) {
             unset($data['created_at']);
-
-            DB::table('wallets')
-                ->where('user_id', $user->id)
-                ->update($data);
+            DB::table('wallets')->where('user_id', $user->id)->update($data);
         } else {
             DB::table('wallets')->insert($data);
         }
