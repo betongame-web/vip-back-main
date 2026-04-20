@@ -280,6 +280,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        // Production safe rollback intentionally left empty
+        // production safe rollback intentionally left empty
     }
 };
