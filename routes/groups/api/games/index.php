@@ -6,8 +6,10 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('games')->group(function () {
     Route::get('all', [GameController::class, 'index']);
     Route::get('single/{id}', [GameController::class, 'show']);
-    Route::post('favorite/{id}', [GameController::class, 'toggleFavorite'])->middleware('auth.jwt');
-    Route::post('like/{id}', [GameController::class, 'toggleLike'])->middleware('auth.jwt');
+    Route::post('favorite/{id}', [GameController::class, 'toggleFavorite'])
+        ->middleware('auth.jwt');
+    Route::post('like/{id}', [GameController::class, 'toggleLike'])
+        ->middleware('auth.jwt');
 });
 
 Route::prefix('featured')->group(function () {
@@ -21,7 +23,12 @@ Route::prefix('vgames')->group(function () {
     Route::get('checklucky', [GameController::class, 'checkLucky']);
     Route::get('luckywheel', [GameController::class, 'luckyWheel']);
     Route::get('history/{id}', [GameController::class, 'historyDetail']);
-    Route::any('{token}/{action}', [GameController::class, 'sourceProvider']);
+
+    Route::match(
+        ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        '{token}/{action}',
+        [GameController::class, 'sourceProvider']
+    );
 });
 
 Route::prefix('casinos')->group(function () {
