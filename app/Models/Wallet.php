@@ -121,3 +121,57 @@ class Wallet extends Model
         return $this->belongsTo(User::class);
     }
 }
+
+public function getBalanceBonusAttribute($value)
+{
+    if ($value !== null) {
+        return $value;
+    }
+
+    return $this->attributes['bonus_balance'] ?? 0;
+}
+
+public function getBalanceWithdrawalAttribute($value)
+{
+    if ($value !== null) {
+        return $value;
+    }
+
+    return $this->attributes['withdrawable_balance'] ?? 0;
+}
+
+public function getStatusAttribute($value)
+{
+    if ($value !== null) {
+        return (bool) $value;
+    }
+
+    if (array_key_exists('active', $this->attributes)) {
+        return (bool) $this->attributes['active'];
+    }
+
+    return true;
+}
+
+public function getCurrencyAttribute($value)
+{
+    return $value ?? 'USD';
+}
+
+public function getSymbolAttribute($value)
+{
+    return $value ?? '$';
+}
+
+public function getTotalBalanceAttribute($value)
+{
+    if ($value !== null && (float) $value > 0) {
+        return $value;
+    }
+
+    $balance = (float) ($this->attributes['balance'] ?? 0);
+    $bonus = (float) ($this->attributes['balance_bonus'] ?? $this->attributes['bonus_balance'] ?? 0);
+    $withdraw = (float) ($this->attributes['balance_withdrawal'] ?? $this->attributes['withdrawable_balance'] ?? 0);
+
+    return $balance + $bonus + $withdraw;
+}
