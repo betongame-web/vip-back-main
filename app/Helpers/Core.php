@@ -763,12 +763,13 @@ class Core
         if(Cache::has('setting')) {
             $setting = Cache::get('setting');
         }else{
-            $setting = Setting::select(
+            $columns = [
                 'software_name',
                 'software_description',
                 'software_logo_white',
                 'software_logo_black',
                 'currency_code',
+                'currency_symbol',
                 'decimal_format',
                 'currency_position',
                 'prefix',
@@ -778,10 +779,18 @@ class Core
                 'min_withdrawal',
                 'max_withdrawal',
                 'initial_bonus',
+                'bonus_vip',
+                'activate_vip_bonus',
                 'suitpay_is_enable',
                 'stripe_is_enable',
                 'disable_spin',
-            )->first();
+                'rollover',
+                'language_default',
+                'maintenance_mode',
+            ];
+
+            $available = array_values(array_filter($columns, fn ($column) => \Schema::hasColumn('settings', $column)));
+            $setting = !empty($available) ? Setting::select($available)->first() : Setting::first();
 
             Cache::put('setting', $setting);
         }
