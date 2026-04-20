@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\Game;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -88,15 +87,19 @@ Route::get('/__inspect', function (Request $request) {
     $gamesSelect = array_values(array_intersect([
         'id',
         'provider_id',
+        'game_name',
         'name',
         'game_code',
         'distribution',
         'status',
+        'is_featured',
+        'views',
     ], $gamesColumns));
 
     return response()->json([
         'app_env' => config('app.env'),
         'app_url' => config('app.url'),
+        'routes_file_check' => 'vgames-post-debug-v2',
 
         'tables' => DB::select("
             SELECT tablename
@@ -149,7 +152,7 @@ include_once(__DIR__ . '/groups/gateways/bspay.php');
 include_once(__DIR__ . '/groups/gateways/stripe.php');
 include_once(__DIR__ . '/groups/gateways/suitpay.php');
 
-/// SOCIAL
+// SOCIAL
 include_once(__DIR__ . '/groups/auth/social.php');
 
 // APP
