@@ -7,7 +7,6 @@ if [ ! -f .env ]; then
   cp .env.example .env || true
 fi
 
-php artisan key:generate --force || true
 php artisan config:clear || true
 php artisan route:clear || true
 php artisan view:clear || true
