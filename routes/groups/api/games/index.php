@@ -15,6 +15,12 @@ Route::prefix('featured')->group(function () {
 });
 
 Route::prefix('vgames')->group(function () {
+    Route::get('pricing', [GameController::class, 'pricing']);
+    Route::get('checkfree', [GameController::class, 'checkFree']);
+    Route::get('freecredit', [GameController::class, 'freeCredit']);
+    Route::get('checklucky', [GameController::class, 'checkLucky']);
+    Route::get('luckywheel', [GameController::class, 'luckyWheel']);
+    Route::get('history/{id}', [GameController::class, 'historyDetail']);
     Route::any('{token}/{action}', [GameController::class, 'sourceProvider']);
 });
 
