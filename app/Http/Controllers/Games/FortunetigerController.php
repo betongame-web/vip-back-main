@@ -144,7 +144,9 @@ class FortunetigerController extends Controller
             5 => 7,
         ];
 
-        return self::FreeNumStructure($request, $token, $freeSpin);
+                $multiples = [1 => 1, 2 => 2, 3 => 3, 4 => 4, 5 => 5];
+
+        return self::FreeNumStructure($request, $token, $freeSpin, $multiples);
     }
 
     /**

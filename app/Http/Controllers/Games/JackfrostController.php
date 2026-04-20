@@ -134,9 +134,12 @@ class JackfrostController extends Controller
     /**
      * Freenum
      */
-    public function freenum(Request $request)
+    public function freenum(Request $request, $token)
     {
-        //
+        $freeSpin = [1 => 3, 2 => 4, 3 => 5, 4 => 6, 5 => 7];
+        $multiples = [1 => 1, 2 => 2, 3 => 3, 4 => 4, 5 => 5];
+
+        return self::FreeNumStructure($request, $token, $freeSpin, $multiples);
     }
 
     /**
