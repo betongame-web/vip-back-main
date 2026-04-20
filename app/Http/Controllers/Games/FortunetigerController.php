@@ -156,4 +156,21 @@ class FortunetigerController extends Controller
     {
         return FortuneTigerIcons::getIcons();
     }
+public function change_free(Request $request, $token = null)
+{
+    return response()->json([
+        'success' => true,
+        'message' => 'Change free success',
+        'data' => [],
+    ], 200);
+}
+
+public function history_detail(Request $request, $token = null)
+{
+    return response()->json([
+        'success' => true,
+        'message' => 'History detail success',
+        'data' => [],
+    ], 200);
+}
 }
