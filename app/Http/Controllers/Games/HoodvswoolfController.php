@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Games;
 
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Games\SpinData\FortuneTiger\FortuneTigerIcons;
+use App\Http\Controllers\Games\SpinData\HoodVsWoolf\HoodVsWoolfIcons;
 use App\Http\Controllers\Games\SpinData\HoodVsWoolf\HoodVsWoolfBonus;
 use App\Http\Controllers\Games\SpinData\HoodVsWoolf\HoodVsWoolfDemo;
 use App\Http\Controllers\Games\SpinData\HoodVsWoolf\HoodVsWoolfLose;
@@ -147,6 +147,23 @@ class HoodvswoolfController extends Controller
      */
     public function icons()
     {
-        return FortuneTigerIcons::getIcons();
+        return HoodVsWoolfIcons::getIcons();
     }
+public function change_free(Request $request, $token = null)
+{
+    return response()->json([
+        'success' => true,
+        'message' => 'Change free success',
+        'data' => [],
+    ], 200);
+}
+
+public function history_detail(Request $request, $token = null)
+{
+    return response()->json([
+        'success' => true,
+        'message' => 'History detail success',
+        'data' => [],
+    ], 200);
+}
 }
