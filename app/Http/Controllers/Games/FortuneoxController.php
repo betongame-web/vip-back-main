@@ -8,11 +8,6 @@ use App\Http\Controllers\Games\SpinData\FortuneOX\FortuneOXDemo;
 use App\Http\Controllers\Games\SpinData\FortuneOX\FortuneOXIcons;
 use App\Http\Controllers\Games\SpinData\FortuneOX\FortuneOXLose;
 use App\Http\Controllers\Games\SpinData\FortuneOX\FortuneOXWin;
-use App\Http\Controllers\Games\SpinData\FortuneTiger\FortuneTigerBonus;
-use App\Http\Controllers\Games\SpinData\FortuneTiger\FortuneTigerDemo;
-use App\Http\Controllers\Games\SpinData\FortuneTiger\FortuneTigerIcons;
-use App\Http\Controllers\Games\SpinData\FortuneTiger\FortuneTigerLose;
-use App\Http\Controllers\Games\SpinData\FortuneTiger\FortuneTigerWin;
 use App\Traits\Providers\PrivateGamesTrait;
 use Illuminate\Http\Request;
 
@@ -133,7 +128,7 @@ class FortuneoxController extends Controller
             ]
         ];
 
-        return self::SpinStructure($token, $settingGame, $pull, FortuneTigerLose::getLose(), FortuneTigerDemo::getDemo(), FortuneTigerWin::getWin(), FortuneTigerBonus::getBonus());
+return self::SpinStructure($token, $settingGame, $pull, FortuneOXLose::getLose(), FortuneOXDemo::getDemo(), FortuneOXWin::getWin(), FortuneOXBonus::getBonus());
     }
 
     /**
@@ -159,6 +154,23 @@ class FortuneoxController extends Controller
      */
     public function icons()
     {
-        return FortuneTigerIcons::getIcons();
+        return FortuneOXIcons::getIcons();
     }
+public function change_free(Request $request, $token = null)
+{
+    return response()->json([
+        'success' => true,
+        'message' => 'Change free success',
+        'data' => [],
+    ], 200);
+}
+
+public function history_detail(Request $request, $token = null)
+{
+    return response()->json([
+        'success' => true,
+        'message' => 'History detail success',
+        'data' => [],
+    ], 200);
+}
 }
